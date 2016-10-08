@@ -134,9 +134,9 @@ module GraphQL
         module FieldPrinter
           include DeprecatedPrinter
           include ArgsPrinter
-          def print_fields(type)
-            # TODO: filter
-            type.all_fields.map{ |field|
+          def print_fields(type, schema)
+            fields = type.all_fields.select { |f| schema.visible_field?(f) }
+            fields.map { |field|
               "  #{field.name}#{print_args(field)}: #{field.type}#{print_deprecated(field)}"
             }.join("\n")
           end
@@ -165,14 +165,14 @@ module GraphQL
             else
               implementations = nil
             end
-            "type #{type.name}#{implementations} {\n#{print_fields(type)}\n}"
+            "type #{type.name}#{implementations} {\n#{print_fields(type, schema)}\n}"
           end
         end
 
         class InterfacePrinter
           extend FieldPrinter
           def self.print(type, schema)
-            "interface #{type.name} {\n#{print_fields(type)}\n}"
+            "interface #{type.name} {\n#{print_fields(type, schema)}\n}"
           end
         end
 
