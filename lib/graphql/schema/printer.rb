@@ -30,13 +30,11 @@ module GraphQL
         directives = schema.directives.values.select{ |directive| directive_filter.call(directive) }
         directive_definitions = directives.map{ |directive| print_directive(directive) }
 
-        types = schema.each_type.select{ |type| type_filter.call(type) }.sort_by(&:name)
-        type_definitions = types.map{ |type| print_type(type, schema) }
+        types = schema.types.values.select{ |type| type_filter.call(type) }.sort_by(&:name)
+        type_definitions = types.map{ |type| print_type(type) }
 
-        schema_parts = [print_schema_definition(schema)]
-        schema_parts.concat(directive_definitions)
-        schema_parts.concat(type_definitions)
-        schema_parts.join("\n\n")
+        [print_schema_definition(schema)].concat(directive_definitions)
+                                         .concat(type_definitions).join("\n\n")
       end
 
       def print_schema_definition(schema)
@@ -62,8 +60,8 @@ module GraphQL
         !is_introspection_type(type) && !BUILTIN_SCALARS.include?(type.name)
       end
 
-      def print_type(type, schema)
-        TypeKindPrinters::STRATEGIES.fetch(type.kind).print(type, schema)
+      def print_type(type)
+        TypeKindPrinters::STRATEGIES.fetch(type.kind).print(type)
       end
 
       def print_directive(directive)
@@ -115,7 +113,6 @@ module GraphQL
             when EnumType
               type.coerce_result(value)
             when InputObjectType
-              # TODO: filter
               fields = value.to_h.map{ |field_name, field_value|
                 field_type = type.input_fields.fetch(field_name.to_s).type
                 "#{field_name}: #{print_value(field_value, field_type)}"
@@ -134,9 +131,8 @@ module GraphQL
         module FieldPrinter
           include DeprecatedPrinter
           include ArgsPrinter
-          def print_fields(type, schema)
-            fields = type.all_fields.select { |f| schema.visible_field?(f) }
-            fields.map { |field|
+          def print_fields(type)
+            type.all_fields.map{ |field|
               "  #{field.name}#{print_args(field)}: #{field.type}#{print_deprecated(field)}"
             }.join("\n")
           end
@@ -151,42 +147,39 @@ module GraphQL
         end
 
         class ScalarPrinter
-          def self.print(type, schema)
+          def self.print(type)
             "scalar #{type.name}"
           end
         end
 
         class ObjectPrinter
           extend FieldPrinter
-          def self.print(type, schema)
+          def self.print(type)
             if type.interfaces.any?
-              # TODO: filter
               implementations = " implements #{type.interfaces.map(&:to_s).join(", ")}"
             else
               implementations = nil
             end
-            "type #{type.name}#{implementations} {\n#{print_fields(type, schema)}\n}"
+            "type #{type.name}#{implementations} {\n#{print_fields(type)}\n}"
           end
         end
 
         class InterfacePrinter
           extend FieldPrinter
-          def self.print(type, schema)
-            "interface #{type.name} {\n#{print_fields(type, schema)}\n}"
+          def self.print(type)
+            "interface #{type.name} {\n#{print_fields(type)}\n}"
           end
         end
 
         class UnionPrinter
-          def self.print(type, schema)
-            members = schema.possible_types(type)
-            "union #{type.name} = #{members.map(&:name).join(" | ")}"
+          def self.print(type)
+            "union #{type.name} = #{type.possible_types.map(&:to_s).join(" | ")}"
           end
         end
 
         class EnumPrinter
           extend DeprecatedPrinter
-          def self.print(type, schema)
-            # TODO: filter
+          def self.print(type)
             values = type.values.values.map{ |v| "  #{v.name}#{print_deprecated(v)}" }.join("\n")
             "enum #{type.name} {\n#{values}\n}"
           end
@@ -194,8 +187,7 @@ module GraphQL
 
         class InputObjectPrinter
           extend FieldPrinter
-          def self.print(type, schema)
-            # TODO: filter
+          def self.print(type)
             fields = type.input_fields.values.map{ |field| "  #{print_input_value(field)}" }.join("\n")
             "input #{type.name} {\n#{fields}\n}"
           end
