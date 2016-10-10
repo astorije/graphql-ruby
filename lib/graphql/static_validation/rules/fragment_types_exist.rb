@@ -18,7 +18,7 @@ module GraphQL
 
       def validate_type_exists(node, context)
         return unless node.type
-        type = context.schema.types.fetch(node.type, nil)
+        type = context.warden.get_type(node.type)
         if type.nil?
           context.errors << message("No such type #{node.type}, so it can't be a fragment condition", node, context: context)
           GraphQL::Language::Visitor::SKIP

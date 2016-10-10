@@ -236,6 +236,29 @@ describe GraphQL::Schema::Mask do
       assert_equal false, possible_type_names(res["data"]["LanguageMember"]).include?("Phoneme")
     end
 
+    it "can't be a fragment condition" do
+      query_string = %|
+      {
+        unit(name: "bilabial trill") {
+          ... on Phoneme { name }
+          ... f1
+        }
+      }
+
+      fragment f1 on Phoneme {
+        name
+      }
+      |
+
+      res = MaskHelpers.query_with_mask(query_string, mask)
+
+      expected_errors = [
+        "No such type Phoneme, so it can't be a fragment condition",
+        "No such type Phoneme, so it can't be a fragment condition",
+      ]
+      assert_equal expected_errors, error_messages(res)
+    end
+
     describe "hiding an abstract type" do
       let(:mask) {
         GraphQL::Schema::Mask.new { |member| member.metadata[:hidden_abstract_type] }
