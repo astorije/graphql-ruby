@@ -108,6 +108,7 @@ module GraphQL
     def variables
       @variables ||= GraphQL::Query::Variables.new(
         schema,
+        @warden,
         selected_operation.variables,
         @provided_variables
       )

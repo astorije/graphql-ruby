@@ -39,17 +39,17 @@ module GraphQL
       "Non-Null"
     end
 
-    def valid_input?(value)
-      validate_input(value).valid?
+    def valid_input?(value, warden)
+      validate_input(value, warden).valid?
     end
 
-    def validate_input(value)
+    def validate_input(value, warden)
       if value.nil?
         result = GraphQL::Query::InputValidationResult.new
         result.add_problem("Expected value to not be null")
         result
       else
-        of_type.validate_input(value)
+        of_type.validate_input(value, warden)
       end
     end
 
